@@ -19,12 +19,19 @@ class MarkovText:
     def _pair_tokens(self, i):
         ngram = tuple(self.tokens[i:i+self.num_grams])
         token = self.tokens[i+self.num_grams]
-        return {'ngram': ngram, 'next_token': token}
+
+        if self.tokens[i-1] in self.end_puncts:
+            start_gram = True
+        else:
+            start_gram = False
+
+        return {'ngram': ngram, 'next_token': token, 'starting_ngram?': start_gram}
 
     def train(self, filename, num_grams=2, tokens=None):
         self.filename = filename
         self.num_grams = num_grams
         self.tokens = tokens
+        self.end_puncts = ['.', '!', '?']
 
         reference_file = open(filename, 'r')
         string_text = reference_file.read()
@@ -38,7 +45,9 @@ class MarkovText:
         for char in self.punct_chars:
             string_text = re.sub(char, " "+re.sub(r'\\', '', char), string_text)
 
+        # build list of all tokens, filtering out '' (originally line breaks)
         self.tokens = string_text.split(' ')
+        self.tokens = [i for i in self.tokens if i != '']
 
         # add a token denoting end of text because otherwise the last ngram won't have a 
         # corresponding "next token", let alone one which lets the model know the end comes next
@@ -70,7 +79,7 @@ class MarkovText:
 
     def _cleanup_generated_text(self):
 
-        # remove previously added spaces from certain chars ("then , I" -> "then, I")
+        # remove previously added spaces from certain chars ("this , and" -> "this, and")
         for char in self.punct_chars:
             self.generated_text = re.sub(f" {char}", re.sub(r'\\', '', char), self.generated_text)
         
@@ -114,9 +123,9 @@ class MarkovText:
     def generate(self, max_tokens=random.randrange(10, 40)):
         self.max_tokens = max_tokens
 
-        # make seed
+        # start with a "starting ngram" - i.e. one that begins a sentence
         generated_text = []
-        seed = random.choice(self.model['ngram'])
+        seed = random.choice(list(self.model[self.model['starting_ngram?'] == True]['ngram']))
         generated_text.extend([token for token in seed])
 
         # generate text
@@ -130,7 +139,7 @@ class MarkovText:
 
         # truncate at last stop-punctuation-mark
         for i in range(1, len(generated_text)):
-            if generated_text[-i] in ['.', '!', '?']:
+            if generated_text[-i] in self.end_puncts:
                 generated_text = generated_text[:-i+1]
                 break
 
