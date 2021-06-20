@@ -79,7 +79,7 @@ class MarkovText:
 
     def _cleanup_generated_text(self):
 
-        # remove previously added spaces from certain chars ("then , I" -> "then, I")
+        # remove previously added spaces from certain chars ("this , and" -> "this, and")
         for char in self.punct_chars:
             self.generated_text = re.sub(f" {char}", re.sub(r'\\', '', char), self.generated_text)
         
